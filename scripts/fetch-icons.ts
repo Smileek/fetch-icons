@@ -110,9 +110,8 @@ const getImagesFromFrame = async (nodeId: string, setName = "index") => {
     );
 
     const imageUrls = await fetchImageUrls(ids);
-    const iconData = Object.entries(imageUrls.images)
+    const iconsData = Object.entries(imageUrls.images)
       .map(([id, url]) => ({
-        id,
         url: String(url),
         name: imageNodes[id],
       }))
@@ -133,39 +132,39 @@ const getImagesFromFrame = async (nodeId: string, setName = "index") => {
     };
 
     const contents: string[] = [];
-    const promises: Promise<{ name: string; data: string } | undefined>[] = [];
     const iconArray: string[] = [];
+    const BATCH_SIZE = 10;
 
-    iconData.forEach(async (item) => {
-      promises.push(
-        axios
-          .get<string>(item.url, getConfig("image/svg+xml"))
-          .then(({ data }) => {
-            return { name: item.name, data };
-          })
-          .catch((err) => {
-            console.error(err);
-            return undefined;
-          })
+    const getPromise = async (item: any) => {
+      try {
+        const { data } = await axios.get<string>(
+          item.url,
+          getConfig("image/svg+xml")
+        );
+        return { name: item.name, data };
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    for (let i = 0; i < iconsData.length; i += BATCH_SIZE) {
+      const res = await Promise.allSettled(
+        iconsData.slice(i, i + BATCH_SIZE).map(getPromise)
       );
-    });
-
-    for (let i = 0; i < promises.length; i += 10) {
-      const res = await Promise.allSettled(promises.slice(i, i + 10));
 
       for (const icon of res) {
         if (icon?.status === "fulfilled" && icon.value) {
           const iconName = decorateIconName(icon.value.name);
-          const iconData = cleanupSvg(icon.value.data);
+          const svgData = cleanupSvg(icon.value.data);
           contents.push(
-            `export const ${iconName} = (color: string) =>\n  \`${iconData}\`;\n`
+            `export const ${iconName} = (color: string) =>\n  \`${svgData}\`;\n`
           );
           iconArray.push(iconName);
         }
       }
 
       console.log(
-        `    ⌞ ${i + 1} to ${Math.min(i + 10, promises.length)}: done`
+        `    ⌞ ${i + 1} to ${Math.min(i + BATCH_SIZE, iconsData.length)}: done`
       );
     }
 
