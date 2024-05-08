@@ -469,6 +469,11 @@
     "@eslint/core" "^0.10.0"
     levn "^0.4.1"
 
+"@figma/rest-api-spec@^0.23.0":
+  version "0.23.0"
+  resolved "https://registry.npmjs.org/@figma/rest-api-spec/-/rest-api-spec-0.23.0.tgz#ca558de84cbc6a4d93319326ca8b0ba0ee03b147"
+  integrity sha512-x7oWMfg8cYv1yGAxqEzq6m0Eg3mzqa96PvrXBLPWbm3xHiA3Zj9KvhfQau2hVi6BCVBW+ZcJYvllg25JXe6y+w==
+
 "@humanfs/core@^0.19.1":
   version "0.19.1"
   resolved "https://registry.npmjs.org/@humanfs/core/-/core-0.19.1.tgz#17c55ca7d426733fe3c561906b8173c336b40a77"
