@@ -164,7 +164,9 @@ const getImagesFromFrame = async (nodeId: string, setName = "index") => {
         }
       }
 
-      console.log(`    ⌞ ${i} to ${i + 10}: done`);
+      console.log(
+        `    ⌞ ${i + 1} to ${Math.min(i + 10, promises.length)}: done`
+      );
     }
 
     contents.push(
@@ -173,7 +175,9 @@ const getImagesFromFrame = async (nodeId: string, setName = "index") => {
       )}\r\n};\r\n`
     );
 
-    console.log(`=> ${iconArray.length} icons fetched!`);
+    console.log(
+      `=> ${YELLOW_PREFIX}${iconArray.length}${RESET_COLOR} icons fetched!`
+    );
 
     console.log(`[5/5] Creating ${fileName} file...`);
 
