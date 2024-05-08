@@ -13,15 +13,21 @@ const PERSONAL_ACCESS_TOKEN = String(
 
 const FIGMA_API_URL = "https://api.figma.com/v1";
 const FILE_KEY = "v50KJO82W9bBJUppE8intT";
-const MAIN_NODE_ID = "2403:4364"; //"2403:6067";
 
 const ICONS_FOLDER = "../src/assets/icons";
-const ICONS_FILE_NAME = "index.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-/** --- Utility functions --- */
+const iconSets = {
+  toggle: "2403:4364",
+  search: "2403:4568",
+  action: "2403:6067",
+};
+
+const GREEN_PREFIX = "\x1b[32m";
+const YELLOW_PREFIX = "\x1b[33m";
+const RESET_COLOR = "\x1b[0m";
 
 const getConfig = (contentType = "application/json") => ({
   method: "GET",
@@ -31,14 +37,6 @@ const getConfig = (contentType = "application/json") => ({
   },
 });
 
-const saveFile = (filePath: string, content: string) => {
-  try {
-    fs.writeFileSync(path.resolve(__dirname, filePath), content);
-  } catch (err) {
-    console.error(err);
-  }
-};
-
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const normalizeName = (name: string) =>
@@ -46,9 +44,6 @@ const normalizeName = (name: string) =>
     ?.split(/[_-]/)
     .map((x) => capitalize(x))
     .join("");
-
-const normalizeFilename = (filename: string) =>
-  filename.replace(/(-| |&)/g, "").replace("20", "");
 
 const fetchFrameData = async (nodeId: string) => {
   const { data } = await axios.get<GetFileNodesResponse>(
@@ -84,102 +79,113 @@ const fetchImageUrls = async (nodeIds: string[]) => {
   return data;
 };
 
-console.log("[0/4] Removing existing icons...");
+const getImagesFromFrame = async (nodeId: string, setName = "index") => {
+  console.log(`Getting ${setName} icons from the node ${nodeId}`);
+  console.log("[1/5] Removing existing icons...");
 
-fs.readdir(path.resolve(__dirname, ICONS_FOLDER), (err, files) => {
-  if (err) throw err;
+  const fileName = `${setName}.ts`;
 
-  for (const file of files)
-    fs.unlink(path.join(path.resolve(__dirname, ICONS_FOLDER), file), (err) => {
+  const filePath = path.join(path.resolve(__dirname, ICONS_FOLDER), fileName);
+
+  if (fs.existsSync(filePath)) {
+    fs.unlink(filePath, (err) => {
       if (err) throw err;
     });
-});
-
-try {
-  console.log("[1/4] Fetching Figma icon nodes...");
-
-  const mainNode = await fetchFrameData(MAIN_NODE_ID);
-  const imageNodes = getImageNodes(mainNode);
-
-  const ids = Object.keys(imageNodes);
-  if (!ids.length) {
-    console.error("No icons found!");
-    process.exit(1);
   }
 
-  console.log(`[2/4] Fetching ${ids.length} icons URLs...`);
+  try {
+    console.log("[2/5] Fetching Figma icon nodes...");
 
-  const imageUrls = await fetchImageUrls(ids);
-  const iconData = Object.entries(imageUrls.images)
-    .map(([id, url]) => ({
-      id,
-      url: String(url),
-      name: imageNodes[id],
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    const mainNode = await fetchFrameData(nodeId);
+    const imageNodes = getImageNodes(mainNode);
 
-  console.log("[3/4] Fetching icon files...");
-
-  const decorateIconName = (name: string) => `Icon${name}`;
-
-  const svgTags = /<\/?svg.*?>/g;
-  const colorFills = /fill=["'].+?["']/g;
-
-  const cleanup = (data: string) => {
-    return data
-      .replace(svgTags, "")
-      .replace(colorFills, 'fill="${color}"')
-      .replace(/\n/g, "");
-  };
-
-  const contents: string[] = [];
-  const promises: Promise<{ name: string; data: string }>[] = [];
-  const iconArray: string[] = [];
-
-  iconData.forEach(async (ic) => {
-    promises.push(
-      axios
-        .get(ic.url, getConfig("image/svg+xml"))
-        .then(({ data }) => {
-          return { name: ic.name, data };
-        })
-        .catch((err) => {
-          console.error(err);
-          return new Promise(() => null);
-        })
-    );
-  });
-
-  for (let i = 0; i < promises.length; i += 10) {
-    const res = await Promise.allSettled(promises.slice(i, i + 10));
-
-    for (const ic of res) {
-      if (ic?.status === "fulfilled") {
-        const iconName = decorateIconName(normalizeFilename(ic.value.name));
-        const iconData = cleanup(ic.value.data);
-        contents.push(
-          `export const ${iconName} = (color: string) =>\n  \`${iconData}\`;\n`
-        );
-        iconArray.push(iconName);
-      }
+    const ids = Object.keys(imageNodes);
+    if (!ids.length) {
+      console.error("No icons found!");
+      process.exit(1);
     }
 
-    console.log(`${i} to ${i + 10}: done`);
+    console.log(
+      `[3/5] Fetching ${YELLOW_PREFIX}${ids.length}${RESET_COLOR} icons URLs...`
+    );
+
+    const imageUrls = await fetchImageUrls(ids);
+    const iconData = Object.entries(imageUrls.images)
+      .map(([id, url]) => ({
+        id,
+        url: String(url),
+        name: imageNodes[id],
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    console.log("[4/5] Fetching icon files...");
+
+    const decorateIconName = (name: string) => `Icon${name}`;
+
+    const svgTags = /<\/?svg.*?>/g;
+    const colorFills = /fill=["'].+?["']/g;
+
+    const cleanupSvg = (data: string) => {
+      return data
+        .replace(svgTags, "")
+        .replace(colorFills, 'fill="${color}"')
+        .replace(/\n/g, "");
+    };
+
+    const contents: string[] = [];
+    const promises: Promise<{ name: string; data: string } | undefined>[] = [];
+    const iconArray: string[] = [];
+
+    iconData.forEach(async (item) => {
+      promises.push(
+        axios
+          .get<string>(item.url, getConfig("image/svg+xml"))
+          .then(({ data }) => {
+            return { name: item.name, data };
+          })
+          .catch((err) => {
+            console.error(err);
+            return undefined;
+          })
+      );
+    });
+
+    for (let i = 0; i < promises.length; i += 10) {
+      const res = await Promise.allSettled(promises.slice(i, i + 10));
+
+      for (const icon of res) {
+        if (icon?.status === "fulfilled" && icon.value) {
+          const iconName = decorateIconName(icon.value.name);
+          const iconData = cleanupSvg(icon.value.data);
+          contents.push(
+            `export const ${iconName} = (color: string) =>\n  \`${iconData}\`;\n`
+          );
+          iconArray.push(iconName);
+        }
+      }
+
+      console.log(`    ⌞ ${i} to ${i + 10}: done`);
+    }
+
+    contents.push(
+      `\r\nexport const ${setName.toLocaleLowerCase()}IconSet: Record<string, (color: string) => string> = {\r\n  ${iconArray.join(
+        ",\r\n  "
+      )}\r\n};\r\n`
+    );
+
+    console.log(`=> ${iconArray.length} icons fetched!`);
+
+    console.log(`[5/5] Creating ${fileName} file...`);
+
+    fs.writeFileSync(filePath, contents.join(""));
+
+    console.log(`${GREEN_PREFIX}=> ${fileName} file created!${RESET_COLOR}`);
+    console.log("====================================\n");
+  } catch (err) {
+    console.error(err);
   }
+};
 
-  contents.push(
-    `\r\nexport const iconSet: Record<string, (color: string) => string> = {\r\n  ${iconArray.join(
-      ",\r\n  "
-    )}\r\n};\r\n`
-  );
-
-  console.log(`=> ${iconArray.length} icons fetched!`);
-
-  console.log(`[4/4] Creating ${ICONS_FILE_NAME} file...`);
-
-  saveFile(`${ICONS_FOLDER}/${ICONS_FILE_NAME}`, contents.join(""));
-
-  console.log(`=> ${ICONS_FILE_NAME} file created!`);
-} catch (err) {
-  console.error(err);
+for (const [setName, nodeId] of Object.entries(iconSets)) {
+  await getImagesFromFrame(nodeId, setName);
 }
