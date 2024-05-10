@@ -19,6 +19,7 @@ const ICONS_FOLDER = "../src/assets/icons";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// https://www.figma.com/design/v50KJO82W9bBJUppE8intT/Material-Design-Icons-(Community)?node-id=2403-6067&t=erLbxL4F8Bxs3EBE-0
 const iconSets = {
   toggle: "2403-4364",
   search: "2403-4568",
@@ -44,6 +45,16 @@ const normalizeName = (name: string) =>
     ?.split(/[_-]/)
     .map((x) => capitalize(x))
     .join("");
+
+const cleanupSvg = (data: string) => {
+  const svgTags = /<\/?svg.*?>/g;
+  const colorFills = /fill=["'].+?["']/g;
+
+  return data
+    .replace(svgTags, "")
+    .replace(colorFills, 'fill="${color}"')
+    .replace(/\n/g, "");
+};
 
 const drawProgressBar = (current: number, total: number) => {
   const progress = current / total;
@@ -133,19 +144,7 @@ const getImagesFromFrame = async (nodeId: string, setName = "index") => {
 
     console.log("[4/5] Fetching icon files...");
 
-    const decorateIconName = (name: string) => `Icon${name}`;
-
-    const svgTags = /<\/?svg.*?>/g;
-    const colorFills = /fill=["'].+?["']/g;
-
-    const cleanupSvg = (data: string) => {
-      return data
-        .replace(svgTags, "")
-        .replace(colorFills, 'fill="${color}"')
-        .replace(/\n/g, "");
-    };
-
-    const contents: string[] = [];
+    const fileContent: string[] = [];
     const iconArray: string[] = [];
     const BATCH_SIZE = 10;
 
@@ -162,15 +161,15 @@ const getImagesFromFrame = async (nodeId: string, setName = "index") => {
     };
 
     for (let i = 0; i < iconsData.length; i += BATCH_SIZE) {
-      const res = await Promise.allSettled(
+      const batch = await Promise.allSettled(
         iconsData.slice(i, i + BATCH_SIZE).map(getPromise)
       );
 
-      for (const icon of res) {
+      for (const icon of batch) {
         if (icon?.status === "fulfilled" && icon.value) {
-          const iconName = decorateIconName(icon.value.name);
+          const iconName = `Icon${icon.value.name}`;
           const svgData = cleanupSvg(icon.value.data);
-          contents.push(
+          fileContent.push(
             `export const ${iconName} = (color: string) =>\n  \`${svgData}\`;\n`
           );
           iconArray.push(iconName);
@@ -182,7 +181,7 @@ const getImagesFromFrame = async (nodeId: string, setName = "index") => {
     drawProgressBar(iconsData.length, iconsData.length);
     process.stdout.write("\n");
 
-    contents.push(
+    fileContent.push(
       `\r\nexport const ${setName.toLocaleLowerCase()}IconSet: Record<string, (color: string) => string> = {\r\n  ${iconArray.join(
         ",\r\n  "
       )}\r\n};\r\n`
@@ -194,7 +193,7 @@ const getImagesFromFrame = async (nodeId: string, setName = "index") => {
 
     console.log(`[5/5] Creating ${fileName} file...`);
 
-    fs.writeFileSync(filePath, contents.join(""));
+    fs.writeFileSync(filePath, fileContent.join(""));
 
     console.log(`${GREEN_PREFIX}=> ${fileName} file created!${RESET_COLOR}`);
     console.log("====================================\n");
