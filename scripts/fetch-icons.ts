@@ -20,9 +20,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const iconSets = {
-  toggle: "2403:4364",
-  search: "2403:4568",
-  action: "2403:6067",
+  toggle: "2403-4364",
+  search: "2403-4568",
+  action: "2403-6067",
 };
 
 const GREEN_PREFIX = "\x1b[32m";
@@ -44,6 +44,20 @@ const normalizeName = (name: string) =>
     ?.split(/[_-]/)
     .map((x) => capitalize(x))
     .join("");
+
+const drawProgressBar = (current: number, total: number) => {
+  const progress = current / total;
+  const barWidth = 20;
+  const filledWidth = Math.floor(progress * barWidth);
+  const emptyWidth = barWidth - filledWidth;
+  const progressBar = "█".repeat(filledWidth) + "-".repeat(emptyWidth);
+
+  process.stdout.clearLine(0);
+  process.stdout.cursorTo(0);
+  process.stdout.write(
+    `      Progress: [${progressBar}] (${current}/${total})`
+  );
+};
 
 const fetchFrameData = async (nodeId: string) => {
   const { data } = await axios.get<GetFileNodesResponse>(
@@ -163,10 +177,10 @@ const getImagesFromFrame = async (nodeId: string, setName = "index") => {
         }
       }
 
-      console.log(
-        `    ⌞ ${i + 1} to ${Math.min(i + BATCH_SIZE, iconsData.length)}: done`
-      );
+      drawProgressBar(i, iconsData.length);
     }
+    drawProgressBar(iconsData.length, iconsData.length);
+    process.stdout.write("\n");
 
     contents.push(
       `\r\nexport const ${setName.toLocaleLowerCase()}IconSet: Record<string, (color: string) => string> = {\r\n  ${iconArray.join(
@@ -175,7 +189,7 @@ const getImagesFromFrame = async (nodeId: string, setName = "index") => {
     );
 
     console.log(
-      `=> ${YELLOW_PREFIX}${iconArray.length}${RESET_COLOR} icons fetched!`
+      `${YELLOW_PREFIX}${iconArray.length}${RESET_COLOR} icons fetched`
     );
 
     console.log(`[5/5] Creating ${fileName} file...`);
@@ -190,5 +204,5 @@ const getImagesFromFrame = async (nodeId: string, setName = "index") => {
 };
 
 for (const [setName, nodeId] of Object.entries(iconSets)) {
-  await getImagesFromFrame(nodeId, setName);
+  await getImagesFromFrame(nodeId.replace("-", ":"), setName);
 }
