@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosRequestConfig } from "axios";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import path from "path";
@@ -18,13 +18,17 @@ const PERSONAL_ACCESS_TOKEN = String(
 const FIGMA_API_URL = "https://api.figma.com/v1";
 const FILE_KEY = "v50KJO82W9bBJUppE8intT";
 
-const ICONS_FOLDER = "../src/assets/icons";
+const PATH_TO_ICONS = "../src/assets/icons";
 
 const URL_BATCH_SIZE = 200;
 const FILE_BATCH_SIZE = 10;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const GREEN_PREFIX = "\x1b[32m";
+const YELLOW_PREFIX = "\x1b[33m";
+const RESET_COLOR = "\x1b[0m";
+
+const currentPath = fileURLToPath(import.meta.url);
+const currentDirectory = path.dirname(currentPath);
 
 // https://www.figma.com/design/v50KJO82W9bBJUppE8intT/Material-Design-Icons-(Community)?node-id=2402-2207&p=f&t=MVEHj7IHfx6DOGyR-0
 const iconSets = {
@@ -38,11 +42,7 @@ const iconSets = {
 //   index: "2402-2207",
 // };
 
-const GREEN_PREFIX = "\x1b[32m";
-const YELLOW_PREFIX = "\x1b[33m";
-const RESET_COLOR = "\x1b[0m";
-
-const getConfig = (contentType = "application/json") => ({
+const getConfig = (contentType = "application/json"): AxiosRequestConfig => ({
   method: "GET",
   headers: {
     "Content-Type": contentType,
@@ -50,15 +50,16 @@ const getConfig = (contentType = "application/json") => ({
   },
 });
 
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const capitalize = (s: string): string =>
+  s.charAt(0).toUpperCase() + s.slice(1);
 
-const normalizeName = (name: string) =>
+const normalizeName = (name: string): string =>
   name
     ?.split(/[_-]/)
     .map((x) => capitalize(x))
     .join("");
 
-const cleanupSvg = (data: string) => {
+const cleanupSvg = (data: string): string => {
   const svgTags = /<\/?svg.*?>/g;
   const colorFills = /fill=["'].+?["']/g;
 
@@ -68,12 +69,12 @@ const cleanupSvg = (data: string) => {
     .replace(/\n/g, "");
 };
 
-const cleanLastLogLine = () => {
+const cleanLastLogLine = (): void => {
   process.stdout.clearLine(0);
   process.stdout.cursorTo(0);
 };
 
-const drawProgressBar = (current: number, total: number) => {
+const drawProgressBar = (current: number, total: number): void => {
   const progress = current / total;
   const barWidth = 20;
   const filledWidth = Math.floor(progress * barWidth);
@@ -86,7 +87,7 @@ const drawProgressBar = (current: number, total: number) => {
   );
 };
 
-const fetchFrameData = async (nodeId: string) => {
+const fetchFrameData = async (nodeId: string): Promise<HasChildrenTrait> => {
   const { data } = await axios.get<GetFileNodesResponse>(
     `${FIGMA_API_URL}/files/${FILE_KEY}/nodes?ids=${nodeId}`,
     getConfig()
@@ -95,7 +96,7 @@ const fetchFrameData = async (nodeId: string) => {
   return data.nodes[nodeId].document as HasChildrenTrait;
 };
 
-const getImageNodes = (row: HasChildrenTrait) => {
+const getImageNodes = (row: HasChildrenTrait): Record<string, string> => {
   const nodes: Record<string, string> = {};
 
   for (const image of row.children.filter((node) => node.type === "INSTANCE")) {
@@ -111,7 +112,9 @@ const getImageNodes = (row: HasChildrenTrait) => {
   return nodes;
 };
 
-const fetchImageUrls = async (nodeIds: string[]) => {
+const fetchImageUrls = async (
+  nodeIds: string[]
+): Promise<GetImagesResponse> => {
   const { data } = await axios.get<GetImagesResponse>(
     `${FIGMA_API_URL}/images/${FILE_KEY}?ids=${nodeIds.join(",")}&format=svg`,
     getConfig()
@@ -120,13 +123,19 @@ const fetchImageUrls = async (nodeIds: string[]) => {
   return data;
 };
 
-const getImagesFromFrame = async (nodeId: string, setName = "index") => {
+const getImagesFromFrame = async (
+  nodeId: string,
+  setName = "index"
+): Promise<void> => {
   console.log(`Getting ${setName} icons from the node ${nodeId}`);
   console.log("[1/5] Removing existing icons...");
 
   const fileName = `${setName}.ts`;
 
-  const filePath = path.join(path.resolve(__dirname, ICONS_FOLDER), fileName);
+  const filePath = path.join(
+    path.resolve(currentDirectory, PATH_TO_ICONS),
+    fileName
+  );
 
   if (fs.existsSync(filePath)) {
     fs.unlink(filePath, (err) => {

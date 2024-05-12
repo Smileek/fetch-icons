@@ -12,13 +12,17 @@ const PERSONAL_ACCESS_TOKEN = String(
 const FIGMA_API_URL = "https://api.figma.com/v1";
 const FILE_KEY = "v50KJO82W9bBJUppE8intT";
 
-const ICONS_FOLDER = "../src/assets/icons";
+const PATH_TO_ICONS = "../src/assets/icons";
 
 const URL_BATCH_SIZE = 200;
 const FILE_BATCH_SIZE = 10;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const GREEN_PREFIX = "\x1b[32m";
+const YELLOW_PREFIX = "\x1b[33m";
+const RESET_COLOR = "\x1b[0m";
+
+const currentPath = fileURLToPath(import.meta.url);
+const currentDirectory = path.dirname(currentPath);
 
 // https://www.figma.com/design/v50KJO82W9bBJUppE8intT/Material-Design-Icons-(Community)?node-id=2402-2207&p=f&t=MVEHj7IHfx6DOGyR-0
 const iconSets = {
@@ -31,10 +35,6 @@ const iconSets = {
 // const iconSets = {
 //   index: "2402-2207",
 // };
-
-const GREEN_PREFIX = "\x1b[32m";
-const YELLOW_PREFIX = "\x1b[33m";
-const RESET_COLOR = "\x1b[0m";
 
 const getConfig = (contentType = "application/json") => ({
   method: "GET",
@@ -129,7 +129,10 @@ const getImagesFromFrame = async (nodeId, setName = "index") => {
 
   const fileName = `${setName}.ts`;
 
-  const filePath = path.join(path.resolve(__dirname, ICONS_FOLDER), fileName);
+  const filePath = path.join(
+    path.resolve(currentDirectory, PATH_TO_ICONS),
+    fileName
+  );
 
   if (fs.existsSync(filePath)) {
     fs.unlink(filePath, (err) => {

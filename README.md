@@ -14,14 +14,14 @@ If you want to use it for your own Figma project, follow the next steps:
    >  yarn add -D tsx axios @figma/rest-api-spec
    > ```
 
-3. Update the `FILE_KEY`, `ICONS_FOLDER` and `iconSets`
+3. Update the `FILE_KEY`, `PATH_TO_ICONS` and `iconSets`
 
 ![Get main params](./screenshots/SelectMainNode.png)
 
 ```js
 const FILE_KEY = "v50KJO82W9bBJUppE8intT";
 
-const ICONS_FOLDER = "../src/assets/icons";
+const PATH_TO_ICONS = "../src/assets/icons";
 
 //...
 
