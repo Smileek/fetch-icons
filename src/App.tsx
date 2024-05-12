@@ -1,5 +1,5 @@
 import "./App.css";
-import { toggleIconSet } from "./assets/icons/toggle";
+import { toggleIconDictionary } from "./assets/icons/toggle";
 import { IconBackup } from "./assets/icons/action";
 import { useState } from "react";
 import MyIcon from "./components/MyIcon";
@@ -12,8 +12,8 @@ function App() {
       <div>
         <pre>No props</pre>
         <div>
-          {Object.keys(toggleIconSet).map((key) => (
-            <MyIcon key={key} svg={toggleIconSet[key]} />
+          {Object.keys(toggleIconDictionary).map((key) => (
+            <MyIcon key={key} svg={toggleIconDictionary[key]} />
           ))}
         </div>
       </div>

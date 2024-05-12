@@ -11,6 +11,11 @@ import {
 
 dotenv.config();
 
+interface IconData {
+  url: string;
+  name: string;
+}
+
 const PERSONAL_ACCESS_TOKEN = String(
   process.env.VITE_FIGMA_PERSONAL_ACCESS_TOKEN
 );
@@ -163,7 +168,7 @@ const getImagesFromFrame = async (
       `[3/5] Fetching ${YELLOW_PREFIX}${ids.length}${RESET_COLOR} icons URLs...`
     );
 
-    const iconsData: { url: string; name: string }[] = [];
+    const iconsData: IconData[] = [];
 
     for (let i = 0; i < ids.length; i += URL_BATCH_SIZE) {
       drawProgressBar(i, ids.length);
@@ -187,7 +192,7 @@ const getImagesFromFrame = async (
     const fileContent: string[] = [];
     const iconArray: string[] = [];
 
-    const getPromise = async (item: any) => {
+    const getPromise = async (item: IconData) => {
       try {
         const { data } = await axios.get<string>(
           item.url,
@@ -221,7 +226,7 @@ const getImagesFromFrame = async (
     cleanLastLogLine();
 
     fileContent.push(
-      `\r\nexport const ${setName.toLocaleLowerCase()}IconSet: Record<string, (color: string) => string> = {\r\n  ${iconArray.join(
+      `\r\nexport const ${setName.toLocaleLowerCase()}IconDictionary: Record<string, (color: string) => string> = {\r\n  ${iconArray.join(
         ",\r\n  "
       )}\r\n};\r\n`
     );
