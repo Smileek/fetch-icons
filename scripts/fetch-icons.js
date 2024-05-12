@@ -14,15 +14,23 @@ const FILE_KEY = "v50KJO82W9bBJUppE8intT";
 
 const ICONS_FOLDER = "../src/assets/icons";
 
+const URL_BATCH_SIZE = 200;
+const FILE_BATCH_SIZE = 10;
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// https://www.figma.com/design/v50KJO82W9bBJUppE8intT/Material-Design-Icons-(Community)?node-id=2403-6067&t=erLbxL4F8Bxs3EBE-0
+// https://www.figma.com/design/v50KJO82W9bBJUppE8intT/Material-Design-Icons-(Community)?node-id=2402-2207&p=f&t=MVEHj7IHfx6DOGyR-0
 const iconSets = {
   toggle: "2403-4364",
   search: "2403-4568",
   action: "2403-6067",
 };
+
+// // Or, if you want one big set:
+// const iconSets = {
+//   index: "2402-2207",
+// };
 
 const GREEN_PREFIX = "\x1b[32m";
 const YELLOW_PREFIX = "\x1b[33m";
@@ -54,6 +62,11 @@ const cleanupSvg = (data) => {
     .replace(/\n/g, "");
 };
 
+const cleanLastLogLine = () => {
+  process.stdout.clearLine(0);
+  process.stdout.cursorTo(0);
+};
+
 const drawProgressBar = (current, total) => {
   const progress = current / total;
   const barWidth = 20;
@@ -61,8 +74,7 @@ const drawProgressBar = (current, total) => {
   const emptyWidth = barWidth - filledWidth;
   const progressBar = "█".repeat(filledWidth) + "-".repeat(emptyWidth);
 
-  process.stdout.clearLine(0);
-  process.stdout.cursorTo(0);
+  cleanLastLogLine();
   process.stdout.write(
     `      Progress: [${progressBar}] (${current}/${total})`
   );
@@ -141,19 +153,29 @@ const getImagesFromFrame = async (nodeId, setName = "index") => {
       `[3/5] Fetching ${YELLOW_PREFIX}${ids.length}${RESET_COLOR} icons URLs...`
     );
 
-    const imageUrls = await fetchImageUrls(ids);
-    const iconsData = Object.entries(imageUrls.images)
-      .map(([id, url]) => ({
-        url: String(url),
-        name: imageNodes[id],
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const iconsData = [];
+
+    for (let i = 0; i < ids.length; i += URL_BATCH_SIZE) {
+      drawProgressBar(i, ids.length);
+
+      const imageUrls = await fetchImageUrls(ids.slice(i, i + URL_BATCH_SIZE));
+
+      iconsData.push(
+        ...Object.entries(imageUrls.images).map(([id, url]) => ({
+          url: String(url),
+          name: imageNodes[id],
+        }))
+      );
+    }
+
+    cleanLastLogLine();
+
+    iconsData.sort((a, b) => a.name.localeCompare(b.name));
 
     console.log("[4/5] Fetching icon files...");
 
     const fileContent = [];
     const iconArray = [];
-    const BATCH_SIZE = 10;
 
     const getPromise = async (item) => {
       const response = await fetch(item.url, getConfig("image/svg+xml"));
@@ -165,9 +187,11 @@ const getImagesFromFrame = async (nodeId, setName = "index") => {
       }
     };
 
-    for (let i = 0; i < iconsData.length; i += BATCH_SIZE) {
+    for (let i = 0; i < iconsData.length; i += FILE_BATCH_SIZE) {
+      drawProgressBar(i, iconsData.length);
+
       const batch = await Promise.allSettled(
-        iconsData.slice(i, i + BATCH_SIZE).map(getPromise)
+        iconsData.slice(i, i + FILE_BATCH_SIZE).map(getPromise)
       );
 
       for (const icon of batch) {
@@ -180,11 +204,9 @@ const getImagesFromFrame = async (nodeId, setName = "index") => {
           iconArray.push(iconName);
         }
       }
-
-      drawProgressBar(i, iconsData.length);
     }
-    drawProgressBar(iconsData.length, iconsData.length);
-    process.stdout.write("\n");
+
+    cleanLastLogLine();
 
     fileContent.push(
       `\r\nexport const ${setName.toLocaleLowerCase()}IconSet: Record<string, (color: string) => string> = {\r\n  ${iconArray.join(
@@ -195,6 +217,13 @@ const getImagesFromFrame = async (nodeId, setName = "index") => {
     console.log(
       `${YELLOW_PREFIX}${iconArray.length}${RESET_COLOR} icons fetched`
     );
+    if (iconArray.length < iconsData.length) {
+      console.error(
+        `Failed to fetch ${
+          iconsData.length - iconArray.length
+        } icons. Check the logs for more details.`
+      );
+    }
 
     console.log(`[5/5] Creating ${fileName} file...`);
 
