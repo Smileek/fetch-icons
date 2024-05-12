@@ -8,11 +8,13 @@ If you want to use it for your own Figma project, follow the next steps:
 
 2. Add the `fetch-icons.js` or `fetch-icons.ts` file to your project.
 
-   > 2.1. JS version only requires nodeJS installed. If you use the TS version, add the dependencies (I use `yarn`, and I'm sure you know how to do it with your favourite package manager):
+   > 2.1. If you use the TS version, add these dependencies (I use `yarn`, and I'm sure you know how to do it with your favourite package manager):
    >
    > ```bash
-   >  yarn add -D tsx axios @figma/rest-api-spec
+   >  yarn add -D tsx dotenv axios @figma/rest-api-spec
    > ```
+   >
+   > For the JS version you'll only need the `dotenv`.
 
 3. Update the `FILE_KEY`, `PATH_TO_ICONS` and `iconSets`
 
