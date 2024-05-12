@@ -96,16 +96,20 @@ const fetchFrameData = async (nodeId: string): Promise<HasChildrenTrait> => {
   return data.nodes[nodeId].document as HasChildrenTrait;
 };
 
-const getImageNodes = (row: HasChildrenTrait): Record<string, string> => {
+const getImageNodes = (frameData: HasChildrenTrait): Record<string, string> => {
   const nodes: Record<string, string> = {};
 
-  for (const image of row.children.filter((node) => node.type === "INSTANCE")) {
+  for (const image of frameData.children.filter(
+    (node) => node.type === "INSTANCE"
+  )) {
     const name = normalizeName(image.name);
     const id = image.id;
     nodes[id] = name;
   }
 
-  for (const frame of row.children.filter((node) => node.type === "FRAME")) {
+  for (const frame of frameData.children.filter(
+    (node) => node.type === "FRAME"
+  )) {
     Object.assign(nodes, getImageNodes(frame));
   }
 
